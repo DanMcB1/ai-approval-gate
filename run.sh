@@ -9,17 +9,91 @@ BIN="$ROOT/bin"
 mkdir -p "$DATA" "$BIN"
 
 CLI_VERSION="1.10.1"
-CLI_URL="https://github.com/temporalio/cli/releases/download/v${CLI_VERSION}/temporal_cli_${CLI_VERSION}_linux_amd64.tar.gz"
 
-if [[ ! -x "$BIN/temporal" ]]; then
-  echo "Downloading Temporal CLI v${CLI_VERSION} (local dev server, no signup)…"
+temporal_platform() {
+  local os arch
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "$os" in
+    linux) os="linux" ;;
+    darwin) os="darwin" ;;
+    *)
+      echo "Unsupported OS: $(uname -s)." >&2
+      echo "run.sh can install the Temporal CLI on Linux and macOS only." >&2
+      exit 1
+      ;;
+  esac
+  case "$arch" in
+    x86_64|amd64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *)
+      echo "Unsupported architecture: $(uname -m)." >&2
+      echo "run.sh can install the Temporal CLI on amd64 and arm64 only." >&2
+      exit 1
+      ;;
+  esac
+  echo "${os}_${arch}"
+}
+
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    echo "Need sha256sum or shasum to verify the Temporal CLI download." >&2
+    exit 1
+  fi
+}
+
+install_temporal_cli() {
+  mkdir -p "$BIN"
+  if [[ -x "$BIN/temporal" ]]; then
+    echo "Temporal CLI already present at $BIN/temporal"
+    return 0
+  fi
+  local platform asset url sums_url tmp expected actual
+  platform="$(temporal_platform)"
+  asset="temporal_cli_${CLI_VERSION}_${platform}.tar.gz"
+  url="https://github.com/temporalio/cli/releases/download/v${CLI_VERSION}/${asset}"
+  sums_url="https://github.com/temporalio/cli/releases/download/v${CLI_VERSION}/checksums.txt"
+  echo "Downloading Temporal CLI v${CLI_VERSION} for ${platform} (local dev server, no signup)…"
   tmp="$(mktemp -d)"
-  curl -sL "$CLI_URL" -o "$tmp/temporal.tar.gz"
-  tar -xzf "$tmp/temporal.tar.gz" -C "$tmp"
-  mv "$tmp/temporal" "$BIN/temporal"
+  fail_tmp() {
+    rm -rf "$tmp"
+    exit 1
+  }
+  curl -fsSL "$url" -o "$tmp/$asset" || fail_tmp
+  if ! curl -fsSL "$sums_url" -o "$tmp/checksums.txt"; then
+    echo "Could not download checksums.txt from the Temporal CLI release." >&2
+    echo "Refusing to install an unverified binary." >&2
+    fail_tmp
+  fi
+  expected="$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/checksums.txt")"
+  if [[ -z "$expected" ]]; then
+    echo "No checksum for $asset in the release checksums file." >&2
+    fail_tmp
+  fi
+  actual="$(sha256_of "$tmp/$asset")"
+  if [[ "$expected" != "$actual" ]]; then
+    echo "Checksum mismatch for $asset" >&2
+    echo "  expected: $expected" >&2
+    echo "  actual:   $actual" >&2
+    fail_tmp
+  fi
+  tar -xzf "$tmp/$asset" -C "$tmp" || fail_tmp
+  mv "$tmp/temporal" "$BIN/temporal" || fail_tmp
   chmod +x "$BIN/temporal"
   rm -rf "$tmp"
+  echo "Verified $asset and installed to $BIN/temporal"
+}
+
+if [[ "${1:-}" == "--install-cli" ]]; then
+  install_temporal_cli
+  exit 0
 fi
+
+install_temporal_cli
 
 if [[ ! -d .venv ]]; then
   python3 -m venv .venv

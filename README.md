@@ -19,13 +19,14 @@ After you scope the work and roll out an assistant, the FDE is often the person 
 You need Python 3.10+ (3.13 is fine) and a network connection the first time (to install packages and the Temporal CLI). No cloud account, no Slack workspace, no signup.
 
 ```bash
-cd 07-approval-gate
+git clone https://github.com/DanMcB1/ai-approval-gate.git
+cd ai-approval-gate
 ./run.sh
 ```
 
 That script will:
 
-1. Download the [Temporal CLI](https://github.com/temporalio/cli) into `bin/temporal` if it is not already there (local dev server, no account).
+1. Download the [Temporal CLI](https://github.com/temporalio/cli) into `bin/temporal` if it is not already there (local dev server, no account). `run.sh` detects Linux or macOS and amd64 or arm64, verifies the download against the release checksums file, and exits clearly on an unsupported platform. `./run.sh --install-cli` installs the CLI only.
 2. Create a virtualenv and install `requirements.txt`.
 3. Start `temporal server start-dev` with a local SQLite file so workflow history survives a server restart too.
 4. Start the Python worker.
@@ -110,11 +111,12 @@ The running inbox is a mock. `approvalgate/slack_adapter.py` is a documented sea
 ## Project layout
 
 ```
-07-approval-gate/
+ai-approval-gate/
   app.py                 Streamlit UI (mock Slack inbox + dashboard)
   run.sh                 Starts Temporal, the worker, and the app
   requirements.txt
   README.md
+  LICENSE                MIT, Copyright (c) 2026 Daniel McBrearty
   DEMO_SCRIPT.md
   approvalgate/          Policy, Temporal workflow, worker, crash test
   tests/
@@ -127,3 +129,7 @@ The running inbox is a mock. `approvalgate/slack_adapter.py` is a documented sea
 Start `./run.sh`, click **Refund $2,400**, switch to the mock Slack inbox, and talk through the policy reason. Then either approve it as the Controller, or (better, if there is time) mention that `python -m approvalgate crash-test` kills the worker mid-wait and still issues the refund only once. The talk track is in [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md).
 
 Daniel’s background is car sales, F&I, and auto software sales (Dealr.cloud), not professional workflow-platform engineering. This project is meant to show he understands **why a human has to sign off, why that wait has to survive a crash, and why a second click must not refund twice**.
+
+## License
+
+This project is released under the [MIT License](LICENSE). Copyright (c) 2026 Daniel McBrearty.
