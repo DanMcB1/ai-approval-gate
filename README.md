@@ -1,5 +1,7 @@
 # Async Durable Approval Gate
 
+**Portfolio project #7 of 12** from [@suraj_sharma14's FDE project list](https://x.com/suraj_sharma14/status/2125197762752806998).
+
 A small, local demo of a **human-in-the-loop approval gate** for high-stakes AI-agent actions. An agent can *propose* a $2,400 refund, an APR change on a funded deal, a 5,000-customer email, or a DMS write-back. A policy decides whether that can auto-approve. If it cannot, the workflow **pauses until a person approves or rejects it**, even if the worker process is killed in the meantime.
 
 This is a **portfolio demo**, not production software. The inbox is a **mock Slack** screen, not real Slack. Approving an action only records a simulated side effect on this machine — it does not move money, email customers, or write to a dealer system.
